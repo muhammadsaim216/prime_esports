@@ -25,6 +25,9 @@ export function Header() {
   const location = useLocation();
   const { user, isAdmin, username, signOut } = useAuth();
 
+  // Helper to determine what name to display
+  const userDisplayName = username || user?.user_metadata?.username || user?.email?.split('@')[0] || "Player";
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <nav className="container flex h-16 items-center justify-between">
@@ -61,7 +64,8 @@ export function Header() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
                   <User className="h-4 w-4" />
-                  {username || user.email?.split('@')[0]}
+                  {/* UPDATED: Displays username instead of email prefix */}
+                  {userDisplayName}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
@@ -115,6 +119,15 @@ export function Header() {
       {mobileMenuOpen && (
         <div className="border-t bg-background md:hidden">
           <div className="container py-4 space-y-4">
+            {/* Display name in mobile menu header */}
+            {user && (
+              <div className="px-2 py-2 border-b mb-2">
+                <p className="text-sm font-bold text-primary uppercase italic">
+                  Welcome, {userDisplayName}
+                </p>
+              </div>
+            )}
+            
             {navLinks.map((link) => (
               <Link
                 key={link.name}
