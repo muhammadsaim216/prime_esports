@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const checkAdminRole = async (userId: string) => {
+  const checkAdminRole = async (userId: string): Promise<boolean> => {
     const { data, error } = await supabase
       .from("user_roles")
       .select("role")
@@ -44,44 +44,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq("role", "admin")
       .maybeSingle();
     
-    if (!error && data) {
-      setIsAdmin(true);
+    const isUserAdmin = !error && !!data;
+    setIsAdmin(isUserAdmin);
+    return isUserAdmin;
+  };
+
+  const initializeUser = async (currentSession: Session | null) => {
+    setSession(currentSession);
+    setUser(currentSession?.user ?? null);
+
+    if (currentSession?.user) {
+      // Wait for both admin check and username fetch to complete before setting loading to false
+      await Promise.all([
+        checkAdminRole(currentSession.user.id),
+        fetchUsername(currentSession.user.id)
+      ]);
     } else {
       setIsAdmin(false);
+      setUsername(null);
     }
+    
+    setLoading(false);
   };
 
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-
-        // Defer admin check and username fetch with setTimeout
-        if (session?.user) {
-          setTimeout(() => {
-            checkAdminRole(session.user.id);
-            fetchUsername(session.user.id);
-          }, 0);
-        } else {
-          setIsAdmin(false);
-          setUsername(null);
+        // Only handle sign in/out events here, not the initial session
+        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+          initializeUser(session);
         }
       }
     );
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-
-      if (session?.user) {
-        checkAdminRole(session.user.id);
-        fetchUsername(session.user.id);
-      }
+      initializeUser(session);
     });
 
     return () => subscription.unsubscribe();

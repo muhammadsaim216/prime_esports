@@ -14,12 +14,18 @@ import Contact from "./pages/Contact";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
+import DashboardApplications from "./pages/dashboard/DashboardApplications";
+import DashboardAnnouncements from "./pages/dashboard/DashboardAnnouncements";
+import DashboardSettings from "./pages/dashboard/DashboardSettings";
 import AdminOverview from "./pages/admin/AdminOverview";
 import AdminScrims from "./pages/admin/AdminScrims";
 import AdminStreams from "./pages/admin/AdminStreams";
 import AdminApplications from "./pages/admin/AdminApplications";
 import AdminPlayers from "./pages/admin/AdminPlayers";
 import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
+import AdminTeams from "./pages/admin/AdminTeams";
+import AdminTryouts from "./pages/admin/AdminTryouts";
+import AdminNews from "./pages/admin/AdminNews";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,12 +48,18 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard/applications" element={<DashboardApplications />} />
+            <Route path="/dashboard/announcements" element={<DashboardAnnouncements />} />
+            <Route path="/dashboard/settings" element={<DashboardSettings />} />
             <Route path="/admin" element={<AdminOverview />} />
             <Route path="/admin/scrims" element={<AdminScrims />} />
             <Route path="/admin/streams" element={<AdminStreams />} />
             <Route path="/admin/applications" element={<AdminApplications />} />
             <Route path="/admin/players" element={<AdminPlayers />} />
             <Route path="/admin/announcements" element={<AdminAnnouncements />} />
+            <Route path="/admin/teams" element={<AdminTeams />} />
+            <Route path="/admin/tryouts" element={<AdminTryouts />} />
+            <Route path="/admin/news" element={<AdminNews />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
