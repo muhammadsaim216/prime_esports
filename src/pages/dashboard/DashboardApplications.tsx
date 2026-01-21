@@ -62,7 +62,7 @@ export default function DashboardApplications() {
     if (!error && data) {
       setApplications(data.map(app => ({
         ...app,
-        scrim: app.scrims as { title: string; game: string } | undefined
+        scrim: Array.isArray(app.scrims) && app.scrims.length > 0 ? app.scrims[0] : undefined
       })));
     }
     setLoading(false);
