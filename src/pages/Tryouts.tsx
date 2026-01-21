@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { Calendar, Clock, Users, ChevronRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,8 +10,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Layout } from "@/components/layout/Layout";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { tryouts, teams } from "@/data/mockData";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+
+interface Tryout {
+  id: string;
+  team_name: string;
+  game: string;
+  position: string;
+  requirements: string | null;
+  description: string | null;
+  deadline: string;
+  status: string;
+}
 
 const availabilityOptions = [
   "Weekday Mornings",
@@ -25,7 +37,10 @@ const availabilityOptions = [
 
 export default function Tryouts() {
   const { toast } = useToast();
-  const [selectedTryout, setSelectedTryout] = useState<typeof tryouts[0] | null>(null);
+  const { user } = useAuth();
+  const [tryouts, setTryouts] = useState<Tryout[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedTryout, setSelectedTryout] = useState<Tryout | null>(null);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -41,6 +56,27 @@ export default function Tryouts() {
     availability: [] as string[],
     agreeToTerms: false,
   });
+
+  useEffect(() => {
+    fetchTryouts();
+  }, []);
+
+  const fetchTryouts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('tryouts')
+        .select('*')
+        .in('status', ['open', 'closing_soon'])
+        .order('deadline');
+
+      if (error) throw error;
+      setTryouts(data || []);
+    } catch (error) {
+      console.error('Error fetching tryouts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,20 +162,43 @@ export default function Tryouts() {
             Available <span className="text-primary">Positions</span>
           </h2>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            {tryouts.map((tryout) => {
-              const team = teams.find((t) => t.name === tryout.team);
-              return (
+          {loading ? (
+            <div className="grid gap-6 md:grid-cols-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i}>
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-12 w-12 rounded-lg" />
+                        <div className="space-y-2">
+                          <Skeleton className="h-5 w-32" />
+                          <Skeleton className="h-4 w-24" />
+                        </div>
+                      </div>
+                      <Skeleton className="h-6 w-16" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <Skeleton className="mb-4 h-12 w-full" />
+                    <Skeleton className="mb-4 h-20 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : tryouts.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2">
+              {tryouts.map((tryout) => (
                 <Card key={tryout.id} className="card-hover">
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-xl">
-                          {team?.logo || "🎮"}
+                          🎮
                         </div>
                         <div>
                           <CardTitle className="text-lg">{tryout.position}</CardTitle>
-                          <p className="text-sm text-muted-foreground">{tryout.team}</p>
+                          <p className="text-sm text-muted-foreground">{tryout.team_name}</p>
                         </div>
                       </div>
                       <Badge
@@ -158,15 +217,19 @@ export default function Tryouts() {
                         <span className="font-medium">Game:</span>
                         <Badge variant="outline">{tryout.game}</Badge>
                       </div>
-                      <div className="flex items-start gap-2 text-sm">
-                        <Check className="mt-0.5 h-4 w-4 text-primary" />
-                        <span className="font-medium">Requirements:</span>
-                        <span className="text-muted-foreground">{tryout.requirements}</span>
-                      </div>
+                      {tryout.requirements && (
+                        <div className="flex items-start gap-2 text-sm">
+                          <Check className="mt-0.5 h-4 w-4 text-primary" />
+                          <span className="font-medium">Requirements:</span>
+                          <span className="text-muted-foreground">{tryout.requirements}</span>
+                        </div>
+                      )}
                       <div className="flex items-center gap-2 text-sm">
                         <Calendar className="h-4 w-4 text-primary" />
                         <span className="font-medium">Deadline:</span>
-                        <span className="text-muted-foreground">{tryout.deadline}</span>
+                        <span className="text-muted-foreground">
+                          {new Date(tryout.deadline).toLocaleDateString()}
+                        </span>
                       </div>
                     </div>
 
@@ -183,7 +246,7 @@ export default function Tryouts() {
                       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
                         <DialogHeader>
                           <DialogTitle className="font-display text-xl">
-                            Apply for {tryout.position} - {tryout.team}
+                            Apply for {tryout.position} - {tryout.team_name}
                           </DialogTitle>
                         </DialogHeader>
 
@@ -393,39 +456,43 @@ export default function Tryouts() {
                     </Dialog>
                   </CardContent>
                 </Card>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No open tryouts at the moment. Check back soon!</p>
+            </div>
+          )}
         </div>
       </section>
 
       {/* FAQ Section */}
       <section className="border-t bg-secondary/30 py-16">
         <div className="container">
-          <h2 className="mb-8 text-center font-display text-2xl font-bold uppercase">
+          <h2 className="mb-8 text-center font-display text-3xl font-bold uppercase">
             Frequently Asked <span className="text-primary">Questions</span>
           </h2>
-          <div className="mx-auto max-w-2xl space-y-4">
+          <div className="mx-auto max-w-3xl space-y-4">
             {[
               {
-                q: "How long does the tryout process take?",
-                a: "The tryout process typically takes 2-4 weeks from application to final decision.",
+                q: "What is the tryout process like?",
+                a: "After submitting your application, our coaching staff will review it within 1-2 weeks. If selected, you'll be invited to participate in practice sessions and scrimmages with the team.",
               },
               {
-                q: "Do I need previous professional experience?",
-                a: "While professional experience is a plus, we also consider players with strong ranked performance and potential.",
+                q: "Do I need previous team experience?",
+                a: "While previous team experience is preferred for most positions, we do consider exceptional solo players for our academy programs.",
               },
               {
-                q: "What happens after I apply?",
-                a: "Our coaching staff reviews all applications. If selected, you'll be invited for a trial period with the team.",
+                q: "Are tryouts paid?",
+                a: "No, tryouts are completely free. Players who make the roster will receive competitive salaries and benefits.",
               },
               {
                 q: "Can I apply for multiple positions?",
-                a: "Yes, but we recommend focusing on the position that best matches your skills.",
+                a: "Yes, you can submit applications for multiple positions. However, we recommend focusing on the role that best matches your skills.",
               },
             ].map((faq, index) => (
               <Card key={index}>
-                <CardHeader className="pb-2">
+                <CardHeader>
                   <CardTitle className="text-base">{faq.q}</CardTitle>
                 </CardHeader>
                 <CardContent>

@@ -1,14 +1,87 @@
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Trophy, MapPin, Twitter, Twitch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Layout } from "@/components/layout/Layout";
-import { teams } from "@/data/mockData";
+import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Player {
+  id: string;
+  name: string;
+  role: string;
+  country: string;
+  image_url: string | null;
+  twitter_url: string | null;
+  twitch_url: string | null;
+}
+
+interface Achievement {
+  id: string;
+  title: string;
+  year: string | null;
+}
+
+interface Team {
+  id: string;
+  name: string;
+  game: string;
+  category: string;
+  logo: string;
+  description: string | null;
+  players: Player[];
+  team_achievements: Achievement[];
+}
 
 export default function TeamDetail() {
   const { id } = useParams();
-  const team = teams.find((t) => t.id === id);
+  const [team, setTeam] = useState<Team | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (id) {
+      fetchTeam(id);
+    }
+  }, [id]);
+
+  const fetchTeam = async (teamId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('teams')
+        .select('*, players(*), team_achievements(*)')
+        .eq('id', teamId)
+        .single();
+
+      if (error) throw error;
+      setTeam(data);
+    } catch (error) {
+      console.error('Error fetching team:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <section className="bg-esports-dark py-16 md:py-24">
+          <div className="container">
+            <Skeleton className="mb-6 h-8 w-32" />
+            <div className="flex flex-col items-center gap-6 md:flex-row md:items-start">
+              <Skeleton className="h-24 w-24 rounded-2xl" />
+              <div className="space-y-4">
+                <Skeleton className="h-10 w-64" />
+                <Skeleton className="h-6 w-48" />
+                <Skeleton className="h-16 w-96" />
+              </div>
+            </div>
+          </div>
+        </section>
+      </Layout>
+    );
+  }
 
   if (!team) {
     return (
@@ -56,21 +129,23 @@ export default function TeamDetail() {
       </section>
 
       {/* Achievements */}
-      <section className="border-b bg-secondary/30 py-8">
-        <div className="container">
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            {team.achievements.map((achievement, index) => (
-              <div
-                key={index}
-                className="flex items-center gap-2 rounded-full border bg-background px-4 py-2"
-              >
-                <Trophy className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">{achievement}</span>
-              </div>
-            ))}
+      {team.team_achievements && team.team_achievements.length > 0 && (
+        <section className="border-b bg-secondary/30 py-8">
+          <div className="container">
+            <div className="flex flex-wrap items-center justify-center gap-4">
+              {team.team_achievements.map((achievement) => (
+                <div
+                  key={achievement.id}
+                  className="flex items-center gap-2 rounded-full border bg-background px-4 py-2"
+                >
+                  <Trophy className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium">{achievement.title}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Roster */}
       <section className="py-16">
@@ -79,41 +154,73 @@ export default function TeamDetail() {
             Active <span className="text-primary">Roster</span>
           </h2>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {team.roster.map((player) => (
-              <Card key={player.id} className="card-hover group overflow-hidden">
-                {/* Player Image Placeholder */}
-                <div className="aspect-square bg-gradient-to-br from-primary/20 to-muted">
-                  <div className="flex h-full items-center justify-center">
-                    <span className="font-display text-6xl font-bold text-primary/30">
-                      {player.name.charAt(0)}
-                    </span>
+          {team.players && team.players.length > 0 ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+              {team.players.map((player) => (
+                <Card key={player.id} className="card-hover group overflow-hidden">
+                  {/* Player Image */}
+                  <div className="aspect-square bg-gradient-to-br from-primary/20 to-muted">
+                    {player.image_url ? (
+                      <img 
+                        src={player.image_url} 
+                        alt={player.name} 
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center">
+                        <span className="font-display text-6xl font-bold text-primary/30">
+                          {player.name.charAt(0)}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                </div>
 
-                <CardContent className="p-4 text-center">
-                  <h3 className="font-display text-lg font-bold">{player.name}</h3>
-                  <Badge variant="secondary" className="mt-1">
-                    {player.role}
-                  </Badge>
-                  <div className="mt-2 flex items-center justify-center gap-1 text-sm text-muted-foreground">
-                    <MapPin className="h-3 w-3" />
-                    {player.country}
-                  </div>
+                  <CardContent className="p-4 text-center">
+                    <h3 className="font-display text-lg font-bold">{player.name}</h3>
+                    <Badge variant="secondary" className="mt-1">
+                      {player.role}
+                    </Badge>
+                    <div className="mt-2 flex items-center justify-center gap-1 text-sm text-muted-foreground">
+                      <MapPin className="h-3 w-3" />
+                      {player.country}
+                    </div>
 
-                  {/* Social Links */}
-                  <div className="mt-3 flex justify-center gap-2">
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <Twitter className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <Twitch className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    {/* Social Links */}
+                    <div className="mt-3 flex justify-center gap-2">
+                      {player.twitter_url && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                          <a href={player.twitter_url} target="_blank" rel="noopener noreferrer">
+                            <Twitter className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      )}
+                      {player.twitch_url && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                          <a href={player.twitch_url} target="_blank" rel="noopener noreferrer">
+                            <Twitch className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      )}
+                      {!player.twitter_url && !player.twitch_url && (
+                        <>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Twitter className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Twitch className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No players on this roster yet.</p>
+            </div>
+          )}
         </div>
       </section>
 
