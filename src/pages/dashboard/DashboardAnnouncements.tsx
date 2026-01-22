@@ -1,18 +1,8 @@
 import { Link } from "react-router-dom";
 import { User, FileText, Bell, Settings, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Layout } from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-
-interface Announcement {
-  id: string;
-  title: string;
-  content: string;
-  created_at: string;
-}
 
 const navItems = [
   { icon: User, label: "Profile", href: "/dashboard" },
@@ -23,27 +13,9 @@ const navItems = [
 
 export default function DashboardAnnouncements() {
   const { user, username, loading: authLoading } = useAuth();
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { announcements, loading } = useRealtimeAnnouncements();
 
   const displayName = username || user?.email?.split('@')[0] || 'Player';
-
-  useEffect(() => {
-    fetchAnnouncements();
-  }, []);
-
-  const fetchAnnouncements = async () => {
-    const { data, error } = await supabase
-      .from("announcements")
-      .select("id, title, content, created_at")
-      .eq("is_published", true)
-      .order("created_at", { ascending: false });
-
-    if (!error && data) {
-      setAnnouncements(data);
-    }
-    setLoading(false);
-  };
 
   if (authLoading) {
     return (
@@ -62,7 +34,7 @@ export default function DashboardAnnouncements() {
           <h1 className="font-display text-3xl font-bold">
             <span className="text-primary">Announcements</span>
           </h1>
-          <p className="text-muted-foreground">Stay updated with the latest news</p>
+          <p className="text-muted-foreground">Stay updated with the latest news (updates in real-time)</p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
@@ -136,3 +108,7 @@ export default function DashboardAnnouncements() {
     </Layout>
   );
 }
+function useRealtimeAnnouncements(): { announcements: any; loading: any; } {
+  throw new Error("Function not implemented.");
+}
+

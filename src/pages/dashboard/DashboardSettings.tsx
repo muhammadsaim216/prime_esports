@@ -1,14 +1,25 @@
 import { Link, useNavigate } from "react-router-dom";
 import { User, FileText, Bell, Settings, ChevronRight, Save } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Layout } from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { profileSchema, ProfileFormData } from "@/lib/validations";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  FormDescription,
+} from "@/components/ui/form";
 
 const navItems = [
   { icon: User, label: "Profile", href: "/dashboard" },
@@ -22,9 +33,13 @@ export default function DashboardSettings() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    username: "",
-    discord_id: "",
+
+  const form = useForm<ProfileFormData>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      username: "",
+      discord_id: "",
+    },
   });
 
   const displayName = username || user?.email?.split('@')[0] || 'Player';
@@ -45,23 +60,22 @@ export default function DashboardSettings() {
       .maybeSingle();
 
     if (data) {
-      setFormData({
+      form.reset({
         username: data.username || "",
         discord_id: data.discord_id || "",
       });
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (data: ProfileFormData) => {
     if (!user) return;
 
     setLoading(true);
     const { error } = await supabase
       .from("profiles")
       .update({
-        username: formData.username,
-        discord_id: formData.discord_id,
+        username: data.username,
+        discord_id: data.discord_id,
         updated_at: new Date().toISOString(),
       })
       .eq("user_id", user.id);
@@ -150,35 +164,48 @@ export default function DashboardSettings() {
                 <CardDescription>Update your profile details</CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" value={user?.email || ""} disabled />
-                    <p className="text-xs text-muted-foreground">Email cannot be changed</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="username">Username</Label>
-                    <Input
-                      id="username"
-                      value={formData.username}
-                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                      placeholder="Your display name"
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <div className="space-y-2">
+                      <FormLabel>Email</FormLabel>
+                      <Input type="email" value={user?.email || ""} disabled />
+                      <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="username"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Username</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Your display name" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            Only letters, numbers, and underscores allowed
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="discord">Discord ID</Label>
-                    <Input
-                      id="discord"
-                      value={formData.discord_id}
-                      onChange={(e) => setFormData({ ...formData, discord_id: e.target.value })}
-                      placeholder="YourName#1234"
+                    <FormField
+                      control={form.control}
+                      name="discord_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Discord ID</FormLabel>
+                          <FormControl>
+                            <Input placeholder="YourName#1234" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  <Button type="submit" disabled={loading} className="gap-2">
-                    <Save className="h-4 w-4" />
-                    {loading ? "Saving..." : "Save Changes"}
-                  </Button>
-                </form>
+                    <Button type="submit" disabled={loading} className="gap-2">
+                      <Save className="h-4 w-4" />
+                      {loading ? "Saving..." : "Save Changes"}
+                    </Button>
+                  </form>
+                </Form>
               </CardContent>
             </Card>
 
