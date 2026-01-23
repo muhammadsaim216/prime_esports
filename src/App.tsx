@@ -32,7 +32,7 @@ import ScrimsPage from "./pages/ScrimsPage";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import CookiePolicy from "./pages/CookiePolicy";
-
+import AdminSettings from "./pages/admin/AdminSettings";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -56,6 +56,7 @@ const App = () => (
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/terms-of-service" element={<TermsOfService />} />
             <Route path="/cookie-policy" element={<CookiePolicy />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
 
       
 
@@ -166,7 +167,9 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-
+            <Route path="/admin">
+                <Route path="settings" element={<AdminSettings />} />
+            </Route>
             {/* 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
