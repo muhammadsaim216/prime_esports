@@ -460,7 +460,7 @@ export default function Tryouts() {
             </div>
           ) : (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">No open tryouts at the moment. Check back soon!</p>
+              <p className="text-muted-foreground">No Scrims at the moment. Check back soon!</p>
             </div>
           )}
         </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Calendar, Clock, Users, DollarSign } from "lucide-react";
+import { Plus, Edit, Trash2, Calendar, Clock, Users, DollarSign, Layers } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ interface Scrim {
   title: string;
   description: string | null;
   game: string;
+  team_format: string; // Added field
   scheduled_at: string;
   is_paid: boolean;
   price: number | null;
@@ -29,11 +30,23 @@ interface Scrim {
   created_at: string;
 }
 
-const games = ["Valorant", "CS2", "League of Legends", "Overwatch 2", "Apex Legends", "Fortnite", "Rocket League"];
+// Configuration for game-specific formats
+const GAME_FORMAT_OPTIONS: Record<string, string[]> = {
+  "PUBG": ["Solo", "Duo", "Squad"],
+  "PUBG Mobile": ["Solo", "Duo", "Squad"],
+  "Free Fire": ["Solo", "Duo", "Squad"],
+  "Valorant": ["5v5", "1v1"],
+  "CS2": ["5v5", "2v2", "1v1"],
+  "Apex Legends": ["Solo", "Duo", "Trio"],
+  "Fortnite": ["Solo", "Duo", "Trio", "Squad"],
+  "Default": ["Solo", "Duo", "Trio", "Squad", "5v5"]
+};
+
 const statuses = ["upcoming", "live", "completed", "cancelled"];
 
 export default function AdminScrims() {
   const [scrims, setScrims] = useState<Scrim[]>([]);
+  const [availableGames, setAvailableGames] = useState<{ name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingScrim, setEditingScrim] = useState<Scrim | null>(null);
@@ -41,6 +54,7 @@ export default function AdminScrims() {
     title: string;
     description: string;
     game: string;
+    team_format: string; // Added field
     scheduled_at: string;
     is_paid: boolean;
     price: number;
@@ -49,19 +63,36 @@ export default function AdminScrims() {
   }>({
     title: "",
     description: "",
-    game: "Valorant",
+    game: "",
+    team_format: "Squad",
     scheduled_at: "",
     is_paid: false,
     price: 0,
     max_players: 10,
     status: "upcoming",
   });
+  
   const { user } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
     fetchScrims();
+    fetchGames();
   }, []);
+
+  const fetchGames = async () => {
+    const { data } = await supabase.from("games").select("name").order("name");
+    if (data) {
+      setAvailableGames(data);
+      if (data.length > 0 && !formData.game) {
+        setFormData(prev => ({ 
+          ...prev, 
+          game: data[0].name,
+          team_format: GAME_FORMAT_OPTIONS[data[0].name]?.[0] || "Squad"
+        }));
+      }
+    }
+  };
 
   const fetchScrims = async () => {
     const { data, error } = await supabase
@@ -76,10 +107,12 @@ export default function AdminScrims() {
   };
 
   const resetForm = () => {
+    const defaultGame = availableGames[0]?.name || "";
     setFormData({
       title: "",
       description: "",
-      game: "Valorant",
+      game: defaultGame,
+      team_format: GAME_FORMAT_OPTIONS[defaultGame]?.[0] || "Squad",
       scheduled_at: "",
       is_paid: false,
       price: 0,
@@ -95,18 +128,27 @@ export default function AdminScrims() {
       title: scrim.title,
       description: scrim.description || "",
       game: scrim.game,
+      team_format: scrim.team_format || "Squad",
       scheduled_at: scrim.scheduled_at.slice(0, 16),
       is_paid: scrim.is_paid,
       price: scrim.price || 0,
       max_players: scrim.max_players,
-      status: scrim.status as "upcoming" | "live" | "completed" | "cancelled",
+      status: scrim.status as any,
     });
     setDialogOpen(true);
   };
 
+  const handleGameChange = (gameName: string) => {
+    const availableFormats = GAME_FORMAT_OPTIONS[gameName] || GAME_FORMAT_OPTIONS["Default"];
+    setFormData({ 
+      ...formData, 
+      game: gameName, 
+      team_format: availableFormats[0] // Auto-reset format when game changes
+    });
+  };
+
   const handleSubmit = async () => {
     if (!user) return;
-
     const scrimData = {
       ...formData,
       price: formData.is_paid ? formData.price : 0,
@@ -157,17 +199,17 @@ export default function AdminScrims() {
 
   return (
     <AdminLayout title="Scrims Management" description="Create and manage competitive scrimmages">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <Badge variant="secondary">{scrims.length} total scrims</Badge>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
-            <Button className="gap-2">
+            <Button className="gap-2 w-full sm:w-auto">
               <Plus className="h-4 w-4" /> Create Scrim
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md w-[95vw] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingScrim ? "Edit Scrim" : "Create New Scrim"}</DialogTitle>
               <DialogDescription>
@@ -177,22 +219,41 @@ export default function AdminScrims() {
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>
-                <Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Weekly Valorant Scrim" />
+                <Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Weekly Scrim" />
               </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Game</Label>
+                  <Select value={formData.game} onValueChange={handleGameChange}>
+                    <SelectTrigger><SelectValue placeholder="Select a game" /></SelectTrigger>
+                    <SelectContent>
+                      {availableGames.map((g) => <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Format (Solo/Squad)</Label>
+                  <Select 
+                    value={formData.team_format} 
+                    onValueChange={(v) => setFormData({ ...formData, team_format: v })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {(GAME_FORMAT_OPTIONS[formData.game] || GAME_FORMAT_OPTIONS["Default"]).map((f) => (
+                        <SelectItem key={f} value={f}>{f}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
                 <Textarea id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Details about the scrim..." />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Game</Label>
-                  <Select value={formData.game} onValueChange={(v) => setFormData({ ...formData, game: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {games.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Status</Label>
                   <Select value={formData.status} onValueChange={(v: any) => setFormData({ ...formData, status: v })}>
@@ -202,29 +263,31 @@ export default function AdminScrims() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                    <Label htmlFor="max_players">Max Players/Teams</Label>
+                    <Input id="max_players" type="number" min={2} value={formData.max_players} onChange={(e) => setFormData({ ...formData, max_players: parseInt(e.target.value) })} />
+                </div>
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="scheduled_at">Scheduled Date & Time</Label>
-                <Input id="scheduled_at" type="datetime-local" value={formData.scheduled_at} onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })} />
+                <Input id="scheduled_at" type="datetime-local" className="w-full" value={formData.scheduled_at} onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })} />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="max_players">Max Players</Label>
-                <Input id="max_players" type="number" min={2} value={formData.max_players} onChange={(e) => setFormData({ ...formData, max_players: parseInt(e.target.value) })} />
-              </div>
-              <div className="flex items-center justify-between rounded-lg border p-4">
-                <div>
+
+              <div className="flex items-center justify-between rounded-lg border p-4 gap-2">
+                <div className="max-w-[70%]">
                   <Label htmlFor="is_paid">Paid Entry</Label>
-                  <p className="text-sm text-muted-foreground">Charge players to join</p>
+                  <p className="text-xs text-muted-foreground">Charge players to join</p>
                 </div>
                 <Switch id="is_paid" checked={formData.is_paid} onCheckedChange={(c) => setFormData({ ...formData, is_paid: c })} />
               </div>
               {formData.is_paid && (
                 <div className="space-y-2">
-                  <Label htmlFor="price">Entry Price ($)</Label>
+                  <Label htmlFor="price">Entry Price (Rs)</Label>
                   <Input id="price" type="number" min={0} step={0.01} value={formData.price} onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })} />
                 </div>
               )}
-              <Button onClick={handleSubmit} className="w-full">
+              <Button onClick={handleSubmit} className="w-full mt-2">
                 {editingScrim ? "Update Scrim" : "Create Scrim"}
               </Button>
             </div>
@@ -233,74 +296,69 @@ export default function AdminScrims() {
       </div>
 
       {loading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="animate-pulse">
-              <CardContent className="h-48" />
-            </Card>
+            <Card key={i} className="animate-pulse"><CardContent className="h-48" /></Card>
           ))}
         </div>
-      ) : scrims.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <p className="text-muted-foreground">No scrims created yet. Create your first one!</p>
-          </CardContent>
-        </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
           {scrims.map((scrim) => (
-            <Card key={scrim.id}>
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
+            <Card key={scrim.id} className="w-full overflow-hidden">
+              <CardHeader className="pb-2 space-y-3">
+                <div className="flex items-start justify-between gap-2">
                   <Badge className={getStatusColor(scrim.status)}>{scrim.status}</Badge>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => openEditDialog(scrim)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(scrim)}>
                       <Edit className="h-4 w-4" />
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>
                       </AlertDialogTrigger>
-                      <AlertDialogContent>
+                      <AlertDialogContent className="w-[95vw] max-w-md">
                         <AlertDialogHeader>
                           <AlertDialogTitle>Delete Scrim?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently delete "{scrim.title}" and all associated applications.
+                          <AlertDialogDescription className="text-sm">
+                            Permanently delete "{scrim.title}"?
                           </AlertDialogDescription>
                         </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                          <AlertDialogCancel className="mt-0">Cancel</AlertDialogCancel>
                           <AlertDialogAction onClick={() => handleDelete(scrim.id)}>Delete</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
                   </div>
                 </div>
-                <CardTitle className="text-lg">{scrim.title}</CardTitle>
+                <CardTitle className="text-base sm:text-lg line-clamp-1">{scrim.title}</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground line-clamp-2">{scrim.description}</p>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <Calendar className="h-3 w-3" />
+              <CardContent className="space-y-4">
+                <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 min-h-[2.5rem]">{scrim.description || "No description."}</p>
+                <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-[10px] sm:text-xs">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Calendar className="h-3.5 w-3.5 text-primary" />
                     {format(new Date(scrim.scheduled_at), "MMM d, yyyy")}
                   </div>
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <Clock className="h-3 w-3" />
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Clock className="h-3.5 w-3.5 text-primary" />
                     {format(new Date(scrim.scheduled_at), "h:mm a")}
                   </div>
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <Users className="h-3 w-3" />
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Users className="h-3.5 w-3.5 text-primary" />
                     Max {scrim.max_players}
                   </div>
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <DollarSign className="h-3 w-3" />
-                    {scrim.is_paid ? `$${scrim.price}` : "Free"}
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <DollarSign className="h-3.5 w-3.5 text-primary" />
+                    {scrim.is_paid ? `Rs ${scrim.price}` : "Free"}
                   </div>
                 </div>
-                <Badge variant="outline">{scrim.game}</Badge>
+                <div className="flex gap-2">
+                  <Badge variant="outline" className="text-[10px] uppercase">{scrim.game}</Badge>
+                  <Badge variant="secondary" className="text-[10px] uppercase bg-primary/10 text-primary">
+                    <Layers className="h-3 w-3 mr-1" /> {scrim.team_format}
+                  </Badge>
+                </div>
               </CardContent>
             </Card>
           ))}
