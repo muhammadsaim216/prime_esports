@@ -55,14 +55,14 @@ export default function DashboardSettings() {
 
     const { data } = await supabase
       .from("profiles")
-      .select("username, discord") // Changed discord_id to discord
+      .select("username, discord_id")
       .eq("user_id", user.id)
       .maybeSingle();
 
     if (data) {
       form.reset({
         username: data.username || "",
-        discord_id: data.discord || "", // Map 'discord' to form 'discord_id'
+        discord_id: data.discord_id || "",
       });
     }
   };
@@ -71,12 +71,11 @@ export default function DashboardSettings() {
     if (!user) return;
 
     setLoading(true);
-    // CRITICAL FIX: The key must be 'discord' to match your Supabase column
     const { error } = await supabase
       .from("profiles")
       .update({
         username: data.username,
-        discord: data.discord_id, // Map form 'discord_id' to DB 'discord'
+        discord_id: data.discord_id,
         updated_at: new Date().toISOString(),
       })
       .eq("user_id", user.id);
@@ -84,10 +83,9 @@ export default function DashboardSettings() {
     setLoading(false);
 
     if (error) {
-      console.error("Update error:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to update profile. Please try again.",
+        description: "Failed to update profile. Please try again.",
         variant: "destructive",
       });
     } else {
@@ -95,16 +93,8 @@ export default function DashboardSettings() {
         title: "Profile Updated",
         description: "Your profile has been updated successfully.",
       });
-      
-      // Update metadata so the Header updates without a full reload
-      await supabase.auth.updateUser({
-        data: { username: data.username }
-      });
-
-      // Give the user a moment to see the toast before reload
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      // Refresh the page to update the username in the header
+      window.location.reload();
     }
   };
 
