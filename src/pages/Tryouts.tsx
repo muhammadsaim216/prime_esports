@@ -159,7 +159,7 @@ export default function Tryouts() {
       <section className="py-16">
         <div className="container">
           <h2 className="mb-8 text-center font-display text-3xl font-bold uppercase">
-            Available <span className="text-primary">Positions</span>
+            Available <span className="text-primary">Scrims</span>
           </h2>
 
           {loading ? (
