@@ -7,10 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, Users, DollarSign, Gamepad2, ArrowRight, MapPin } from "lucide-react";
 import { format } from "date-fns";
+import { RegisterModal } from "@/components/scrims/RegisterModal";
 
 export default function ScrimsPage() {
   const [scrims, setScrims] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // States for handling the Registration Modal
+  const [selectedScrim, setSelectedScrim] = useState<any>(null); 
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     fetchPublicScrims();
@@ -27,11 +32,15 @@ export default function ScrimsPage() {
     setLoading(false);
   };
 
+  // Function to open registration
+  const handleRegisterClick = (scrim: any) => {
+    setSelectedScrim(scrim);
+    setIsModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col selection:bg-[#e91e63]">
-      {/* CRITICAL FIX: This style tag forces the Footer text to be 
-         Bright White regardless of what the original component says.
-      */}
+      {/* Footer Contrast Fix */}
       <style dangerouslySetInnerHTML={{ __html: `
         footer, footer p, footer span, footer a {
           color: #ffffff !important;
@@ -85,7 +94,6 @@ export default function ScrimsPage() {
                       </Badge>
                     </div>
 
-                    {/* Forced high-contrast title */}
                     <h3 className="text-2xl font-black uppercase italic mb-8 tracking-tight text-white leading-tight">
                       {scrim.title}
                     </h3>
@@ -121,7 +129,10 @@ export default function ScrimsPage() {
                       </div>
                     </div>
 
-                    <Button className="w-full bg-[#e91e63] hover:bg-[#d81b60] text-white font-black uppercase tracking-widest h-14 rounded-xl group italic">
+                    <Button 
+                      onClick={() => handleRegisterClick(scrim)}
+                      className="w-full bg-[#e91e63] hover:bg-[#d81b60] text-white font-black uppercase tracking-widest h-14 rounded-xl group italic"
+                    >
                       Register Now <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                     </Button>
                   </CardContent>
@@ -131,6 +142,13 @@ export default function ScrimsPage() {
           )}
         </div>
       </main>
+
+      {/* Registration Modal Component */}
+      <RegisterModal 
+        scrim={selectedScrim} 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+      />
 
       <Footer />
     </div>
