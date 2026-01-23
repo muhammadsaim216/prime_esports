@@ -28,6 +28,10 @@ import AdminTeams from "./pages/admin/AdminTeams";
 import AdminTryouts from "./pages/admin/AdminTryouts";
 import AdminNews from "./pages/admin/AdminNews";
 import NotFound from "./pages/NotFound";
+import ScrimsPage from "./pages/ScrimsPage";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import CookiePolicy from "./pages/CookiePolicy";
 
 const queryClient = new QueryClient();
 
@@ -44,11 +48,16 @@ const App = () => (
             <Route path="/teams" element={<Teams />} />
             <Route path="/teams/:id" element={<TeamDetail />} />
             <Route path="/tryouts" element={<Tryouts />} />
-            <Route path="/scrims" element={<Scrims />} />
+            <Route path="/scrims" element={<ScrimsPage />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms-of-service" element={<TermsOfService />} />
+            <Route path="/cookie-policy" element={<CookiePolicy />} />
+
+      
 
             {/* Protected user dashboard routes */}
             <Route

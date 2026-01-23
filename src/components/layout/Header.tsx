@@ -12,10 +12,11 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 
+
 const navLinks = [
   { name: "Home", href: "/" },
   { name: "Teams", href: "/teams" },
-  { name: "Scrims", href: "/tryouts" },
+  { name: "Scrims", href: "/scrims" },
   { name: "About", href: "/about" },
   { name: "Contact", href: "/contact" },
 ];

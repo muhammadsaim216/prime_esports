@@ -350,7 +350,7 @@ export default function AdminScrims() {
                   </div>
                   <div className="flex items-center gap-1.5 text-muted-foreground">
                     <DollarSign className="h-3.5 w-3.5 text-primary" />
-                    {scrim.is_paid ? `Rs ${scrim.price}` : "Free"}
+                    {scrim.is_paid ? `Rs Rs{scrim.price}` : "Free"}
                   </div>
                 </div>
                 <div className="flex gap-2">
