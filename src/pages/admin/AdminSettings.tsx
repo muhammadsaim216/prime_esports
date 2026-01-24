@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -13,6 +13,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { Settings, Shield, Bell, Globe, Database, Users } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Team {
+  name: string;
+  owner_id: string;
+  players?: Array<any>;
+}
 
 const siteSettingsSchema = z.object({
   siteName: z.string().min(1, "Site name is required").max(100, "Site name must be less than 100 characters"),
@@ -58,6 +65,41 @@ export default function AdminSettings() {
       });
     }
   };
+  
+  const TeamManager = () => {
+  const [myTeam, setMyTeam] = useState<Team | null>(null);
+
+  useEffect(() => {
+    const checkOwnership = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('teams')
+        .select('*, players(*)')
+        .eq('owner_id', user.id)
+        .single();
+
+      setMyTeam(data);
+    };
+    checkOwnership();
+  }, []);
+
+  if (!myTeam) {
+      function handleCreateTeam(event: React.MouseEvent<HTMLButtonElement>): void {
+          throw new Error("Function not implemented.");
+      }
+
+    return <button onClick={handleCreateTeam}>Create Your Team</button>;
+  }
+
+  return (
+    <div>
+      <h1>Managing: {myTeam.name}</h1>
+      {/* Add Form here to update team name, logo, or add players */}
+    </div>
+  );
+};
 
   const handleToggleChange = (setting: string, value: boolean) => {
     toast({

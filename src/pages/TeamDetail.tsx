@@ -48,14 +48,23 @@ export default function TeamDetail() {
 
   const fetchTeam = async (teamId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('teams')
-        .select('*, players(*), team_achievements(*)')
-        .eq('id', teamId)
-        .single();
+    const { data, error } = await supabase
+      .from('teams')
+      .select(`
+        *,
+        players (*),
+        team_achievements (*)
+      `)
+      // Check if teamId is a UUID or a name/slug
+      .or(`id.eq.${teamId},name.eq.${teamId}`) 
+      .single();
 
-      if (error) throw error;
+      if (error) {
+      console.error('Supabase error:', error.message);
+      setTeam(null);
+    } else {
       setTeam(data);
+    }
     } catch (error) {
       console.error('Error fetching team:', error);
     } finally {
@@ -109,8 +118,12 @@ export default function TeamDetail() {
           </Button>
 
           <div className="flex flex-col items-center gap-6 md:flex-row md:items-start">
-            <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-background text-5xl shadow-xl">
-              {team.logo}
+            <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-white p-2 shadow-xl overflow-hidden">
+              {team.logo?.startsWith('http') ? (
+                <img src={team.logo} alt={team.name} className="h-full w-full object-contain" />
+              ) : (
+                <span className="text-black font-black">{team.logo || team.name.charAt(0)}</span>
+              )}
             </div>
             <div className="text-center md:text-left">
               <h1 className="mb-2 font-display text-4xl font-bold uppercase text-white md:text-5xl">
@@ -234,7 +247,7 @@ export default function TeamDetail() {
             Check if there are any open positions for this team.
           </p>
           <Button asChild>
-            <Link to="/tryouts">View Open Tryouts</Link>
+            <Link to="/scrims">View Open Tryouts</Link>
           </Button>
         </div>
       </section>

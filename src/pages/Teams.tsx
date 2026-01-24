@@ -42,12 +42,15 @@ export default function Teams() {
   const fetchTeams = async () => {
     try {
       const { data, error } = await supabase
-        .from('teams')
-        .select('*, players(id, name), team_achievements(id, title)')
-        .order('name');
+        .from('teams') // Make sure this is lowercase if your table is lowercase
+        .select('*');
 
-      if (error) throw error;
-
+      if (error) {
+        console.error("Teams Fetch Error:", error.message);
+      } else {
+        console.log("Teams found:", data); // Check your browser console to see if data arrives
+        setTeams(data || []);
+      }
       if (data) {
         setTeams(data);
         // Extract unique categories
@@ -220,7 +223,7 @@ export default function Teams() {
               We're always looking for talented players. Check out our open tryouts and apply today.
             </p>
             <Button asChild>
-              <Link to="/tryouts">View Open Tryouts</Link>
+              <Link to="/scrims">View Open Tryouts</Link>
             </Button>
           </div>
         </div>

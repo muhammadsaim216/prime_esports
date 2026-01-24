@@ -132,7 +132,7 @@ export default function Home() {
             </p>
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
               <Button size="lg" className="gap-2" asChild>
-                <Link to="/tryouts">
+                <Link to="/scrims">
                   Join Us <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
@@ -425,7 +425,7 @@ export default function Home() {
               Check out our open tryouts and take the first step towards your esports career.
             </p>
             <Button size="lg" className="gap-2" asChild>
-              <Link to="/tryouts">
+              <Link to="/scrims">
                 View Open Tryouts <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>

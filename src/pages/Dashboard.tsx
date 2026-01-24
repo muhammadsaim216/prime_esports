@@ -64,7 +64,7 @@ export default function Dashboard() {
           <div className="space-y-6 lg:col-span-2">
             {/* Applications */}
             <Card>
-              <CardHeader><CardTitle>My Tryout Applications</CardTitle></CardHeader>
+              <CardHeader><CardTitle>My Underdog Applications</CardTitle></CardHeader>
               <CardContent>
                 {mockApplications.length > 0 ? (
                   <div className="space-y-4">
