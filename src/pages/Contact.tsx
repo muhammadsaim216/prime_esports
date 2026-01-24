@@ -21,7 +21,7 @@ const contactReasons = [
 
 const socialLinks = [
   { name: "Twitter", icon: Twitter, href: "https://twitter.com", handle: "@PrimeEsports" },
-  { name: "YouTube", icon: Youtube, href: "https://youtube.com", handle: "Prime Esports" },
+  { name: "YouTube", icon: Youtube, href: "https://youtube.com/@primeesports-gg?si=sraLWMSbGKX04BZ6 ", handle: "Prime Esports" },
   { name: "Twitch", icon: Twitch, href: "https://twitch.tv", handle: "PrimeEsportsTV" },
   { name: "Discord", icon: MessageCircle, href: "https://discord.com", handle: "Prime Esports" },
 ];
@@ -175,7 +175,7 @@ export default function Contact() {
                     </div>
                     <div>
                       <p className="font-semibold">Email</p>
-                      <p className="text-muted-foreground">contact@primeesports.gg</p>
+                      <p className="text-muted-foreground">prime.esports.com@gmail.com</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4 rounded-lg border bg-card p-4">

@@ -160,11 +160,11 @@ export default function Signup() {
                       <div className="space-y-1 leading-none">
                         <FormLabel className="text-sm leading-relaxed font-normal">
                           I agree to the{" "}
-                          <Link to="/terms" className="text-primary hover:underline">
+                          <Link to="/tos" className="text-primary hover:underline font-medium">
                             Terms of Service
                           </Link>{" "}
                           and{" "}
-                          <Link to="/privacy" className="text-primary hover:underline">
+                          <Link to="/privacy" className="text-primary hover:underline font-medium">
                             Privacy Policy
                           </Link>
                         </FormLabel>

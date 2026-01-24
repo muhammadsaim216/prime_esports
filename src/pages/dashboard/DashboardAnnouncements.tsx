@@ -3,6 +3,7 @@ import { User, FileText, Bell, Settings, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Layout } from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
+import { useRealtimeAnnouncements } from "@/hooks/useRealtimeAnnouncements";
 
 const navItems = [
   { icon: User, label: "Profile", href: "/dashboard" },
@@ -108,7 +109,3 @@ export default function DashboardAnnouncements() {
     </Layout>
   );
 }
-function useRealtimeAnnouncements(): { announcements: any; loading: any; } {
-  throw new Error("Function not implemented.");
-}
-

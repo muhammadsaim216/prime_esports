@@ -1,18 +1,63 @@
+import { useState, useEffect } from "react"; // Added hooks
 import { Link } from "react-router-dom";
 import { User, FileText, Bell, Settings, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Layout } from "@/components/layout/Layout";
-import { mockApplications, mockAnnouncements } from "@/data/mockData";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client"; // Import Supabase client
 
 export default function Dashboard() {
-  const { user, username, loading } = useAuth();
+  const { user, username, loading: authLoading } = useAuth();
   
+  // Real-time data states
+  const [applications, setApplications] = useState<any[]>([]);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
+
   const displayName = username || user?.email?.split('@')[0] || 'Player';
 
-  if (loading) {
+  useEffect(() => {
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user]);
+
+  const fetchDashboardData = async () => {
+    try {
+      setDataLoading(true);
+
+      // 1. Fetch User's Applications
+      const { data: appData, error: appError } = await supabase
+        .from('applications')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (appError) throw appError;
+
+      // 2. Fetch Latest Announcements
+      const { data: annData, error: annError } = await supabase
+        .from('announcements')
+        .select('*')
+        .eq('is_published', true)
+        .limit(3)
+        .order('created_at', { ascending: false });
+
+      if (annError) throw annError;
+
+      setApplications(appData || []);
+      setAnnouncements(annData || []);
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setDataLoading(false);
+    }
+  };
+
+  // Combine auth loading and data fetching loading
+  if (authLoading || dataLoading) {
     return (
       <Layout>
         <div className="container py-8 flex items-center justify-center min-h-[50vh]">
@@ -66,13 +111,15 @@ export default function Dashboard() {
             <Card>
               <CardHeader><CardTitle>My Underdog Applications</CardTitle></CardHeader>
               <CardContent>
-                {mockApplications.length > 0 ? (
+                {applications.length > 0 ? (
                   <div className="space-y-4">
-                    {mockApplications.map((app) => (
+                    {applications.map((app) => (
                       <div key={app.id} className="flex items-center justify-between rounded-lg border p-4">
                         <div>
                           <h4 className="font-semibold">{app.position}</h4>
-                          <p className="text-sm text-muted-foreground">{app.team} • Applied {app.appliedDate}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {app.team} • Applied {new Date(app.created_at).toLocaleDateString()}
+                          </p>
                         </div>
                         <Badge variant={app.status === "pending" ? "secondary" : app.status === "reviewed" ? "default" : "outline"}>
                           {app.status}
@@ -82,7 +129,8 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <p className="text-center text-muted-foreground py-8">No applications yet. <Link to="/tryouts" className="text-primary hover:underline">Browse tryouts</Link></p>
-                )}
+                )
+                }
               </CardContent>
             </Card>
 
@@ -91,16 +139,22 @@ export default function Dashboard() {
               <CardHeader><CardTitle>Recent Announcements</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockAnnouncements.map((ann) => (
-                    <div key={ann.id} className="rounded-lg border p-4">
-                      <div className="mb-2 flex items-center gap-2">
-                        <h4 className="font-semibold">{ann.title}</h4>
-                        {ann.priority === "high" && <Badge variant="destructive">Important</Badge>}
+                  {announcements.length > 0 ? (
+                    announcements.map((ann) => (
+                      <div key={ann.id} className="rounded-lg border p-4">
+                        <div className="mb-2 flex items-center gap-2">
+                          <h4 className="font-semibold">{ann.title}</h4>
+                          {ann.priority === "high" && <Badge variant="destructive">Important</Badge>}
+                        </div>
+                        <p className="text-sm text-muted-foreground">{ann.content}</p>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {new Date(ann.created_at).toLocaleDateString()}
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground">{ann.content}</p>
-                      <p className="mt-2 text-xs text-muted-foreground">{ann.date}</p>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No recent announcements.</p>
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -64,7 +64,7 @@ export default function Tryouts() {
   const fetchTryouts = async () => {
     try {
       const { data, error } = await supabase
-        .from('tryouts')
+        .from('Tryouts')
         .select('*')
         .in('status', ['open', 'closing_soon'])
         .order('deadline');

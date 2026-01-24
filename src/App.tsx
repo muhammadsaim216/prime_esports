@@ -27,12 +27,12 @@ import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
 import AdminTeams from "./pages/admin/AdminTeams";
 import AdminTryouts from "./pages/admin/AdminTryouts";
 import AdminNews from "./pages/admin/AdminNews";
-import NotFound from "./pages/NotFound";
-import ScrimsPage from "./pages/ScrimsPage";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import TermsOfService from "./pages/TermsOfService";
-import CookiePolicy from "./pages/CookiePolicy";
 import AdminSettings from "./pages/admin/AdminSettings";
+import NotFound from "./pages/NotFound";
+import TermsOfService from "./pages/TermsOfService";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Scrimspage from "./pages/ScrimsPage"; // Adjust path if needed
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -48,17 +48,14 @@ const App = () => (
             <Route path="/teams" element={<Teams />} />
             <Route path="/teams/:id" element={<TeamDetail />} />
             <Route path="/tryouts" element={<Tryouts />} />
-            <Route path="/scrims" element={<ScrimsPage />} />
+            <Route path="/scrims" element={<Scrims />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
-            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-            <Route path="/terms-of-service" element={<TermsOfService />} />
-            <Route path="/cookie-policy" element={<CookiePolicy />} />
-            <Route path="/admin/settings" element={<AdminSettings />} />
-
-      
+            <Route path="/tos" element={<TermsOfService />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/scrimspage" element={<Scrimspage />} />
 
             {/* Protected user dashboard routes */}
             <Route
@@ -167,9 +164,15 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            <Route path="/admin">
-                <Route path="settings" element={<AdminSettings />} />
-            </Route>
+            <Route
+              path="/admin/settings"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <AdminSettings />
+                </ProtectedRoute>
+              }
+            />
+
             {/* 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -36,17 +36,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const checkAdminRole = async (userId: string): Promise<boolean> => {
+  const checkAdminRole = async (userId: string) => {
     const { data, error } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
-      .eq("role", "admin")
-      .maybeSingle();
+      .single();
     
-    const isUserAdmin = !error && !!data;
-    setIsAdmin(isUserAdmin);
-    return isUserAdmin;
+    if (data?.role === 'admin') {
+      setIsAdmin(true);
+    } else {
+      setIsAdmin(false);
+    }
   };
 
   const initializeUser = async (currentSession: Session | null) => {
