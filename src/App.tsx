@@ -32,7 +32,7 @@ import NotFound from "./pages/NotFound";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Scrimspage from "./pages/ScrimsPage"; // Adjust path if needed
-
+import AddStream from "@/pages/admin/AddStream";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -56,7 +56,7 @@ const App = () => (
             <Route path="/tos" element={<TermsOfService />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/scrimspage" element={<Scrimspage />} />
-
+            <Route path="/admin/streams/add" element={<AddStream />} />
             {/* Protected user dashboard routes */}
             <Route
               path="/dashboard"

@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
+
 interface Stream {
   id: string;
   title: string;
@@ -108,7 +109,6 @@ export default function AdminStreams() {
   };
 
   const generateStreamKey = () => {
-    // Use cryptographically secure random generation
     return `prime_${crypto.randomUUID()}`;
   };
 
@@ -192,7 +192,8 @@ export default function AdminStreams() {
               <Plus className="h-4 w-4" /> Add Stream
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          {/* FIXED: Added scroll and max-height to prevent parts of the dialog from being missing */}
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingStream ? "Edit Stream" : "Add New Stream"}</DialogTitle>
               <DialogDescription>
@@ -246,7 +247,7 @@ export default function AdminStreams() {
                     <SelectValue placeholder="Select a scrim..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No scrim</SelectItem>
+                    <SelectItem value="none">No scrim</SelectItem>
                     {scrims.map((scrim) => (
                       <SelectItem key={scrim.id} value={scrim.id}>{scrim.title}</SelectItem>
                     ))}
