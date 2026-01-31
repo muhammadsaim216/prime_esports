@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, MailCheck } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import {
 export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false); 
   const { signUp } = useAuth();
   const navigate = useNavigate();
 
@@ -33,7 +34,7 @@ export default function Signup() {
       password: "",
       confirmPassword: "",
       discord: "",
-      terms: false as unknown as true, // Type workaround for zod literal
+      terms: false as unknown as true,
     },
   });
 
@@ -48,11 +49,39 @@ export default function Signup() {
     );
 
     if (!error) {
-      navigate("/");
+      setIsSubmitted(true);
     }
 
     setLoading(false);
   };
+
+  if (isSubmitted) {
+    return (
+      <Layout>
+        <section className="flex min-h-[calc(100vh-200px)] items-center justify-center py-16">
+          <Card className="w-full max-w-md text-center">
+            <CardHeader>
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
+                <MailCheck className="h-6 w-6 text-primary-foreground" />
+              </div>
+              <CardTitle className="font-display text-2xl">Verify Email</CardTitle>
+              <CardDescription>
+                Sent to <span className="font-bold">{form.getValues("email")}</span>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Please check your inbox and click the link to confirm your account.
+              </p>
+              <Button asChild className="w-full">
+                <Link to="/login">Back to Login</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </section>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
