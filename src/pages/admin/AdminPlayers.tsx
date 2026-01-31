@@ -1,123 +1,103 @@
 import { useState, useEffect } from "react";
-import { Search, Shield, ShieldCheck, User } from "lucide-react";
+import { Search, User, UserPlus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { AdminLayout } from "./AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
-interface Player {
+interface Profile {
   id: string;
   user_id: string;
   username: string;
   avatar_url: string | null;
   discord_id: string | null;
   created_at: string;
-  role: string | null;
+  role: "admin" | "moderator" | "user"; 
 }
 
 export default function AdminPlayers() {
-  const [players, setPlayers] = useState<Player[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchPlayers();
+    fetchAllProfiles();
   }, []);
 
-  const fetchPlayers = async () => {
-    const { data: profiles, error: profilesError } = await supabase
+  const fetchAllProfiles = async () => {
+    setLoading(true);
+    const { data: profileData, error: profileError } = await supabase
       .from("profiles")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (profilesError) {
-      toast({ title: "Error", description: profilesError.message, variant: "destructive" });
+    if (profileError) {
+      toast({ title: "Fetch Error", description: profileError.message, variant: "destructive" });
       setLoading(false);
       return;
     }
 
-    const { data: roles, error: rolesError } = await supabase
-      .from("user_roles")
-      .select("user_id, role");
+    const { data: roleData } = await supabase.from("user_roles").select("user_id, role");
+    const roleMap = new Map(roleData?.map((r) => [r.user_id, r.role]) || []);
 
-    if (rolesError) {
-      toast({ title: "Error", description: rolesError.message, variant: "destructive" });
-    }
-
-    const roleMap = new Map(roles?.map((r) => [r.user_id, r.role]) || []);
-
-    const playersWithRoles = profiles?.map((p) => ({
+    const mergedData = profileData.map((p) => ({
       ...p,
-      role: roleMap.get(p.user_id) || "user",
-    })) || [];
+      role: (roleMap.get(p.user_id) || "user") as "admin" | "moderator" | "user",
+    }));
 
-    setPlayers(playersWithRoles);
+    setProfiles(mergedData);
     setLoading(false);
   };
 
-  const updateRole = async (userId: string, newRole: "admin" | "moderator" | "user") => {
-    // First delete existing role
+  const handleRoleUpdate = async (userId: string, newRole: "admin" | "moderator" | "user") => {
+    // Correctly update role: Delete existing and insert new (standard Supabase pattern for this table)
     await supabase.from("user_roles").delete().eq("user_id", userId);
 
-    // Then insert new role
-    const { error } = await supabase.from("user_roles").insert({
-      user_id: userId,
-      role: newRole,
-    });
-
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Updated", description: `Role updated to ${newRole}` });
-      fetchPlayers();
+    if (newRole !== "user") {
+      const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: newRole });
+      if (error) {
+        toast({ title: "Update Failed", description: error.message, variant: "destructive" });
+        return;
+      }
     }
+
+    toast({ title: "Success", description: "Role updated successfully!" });
+    fetchAllProfiles();
   };
 
-  const filteredPlayers = players.filter((player) => {
-    const matchesSearch = player.username.toLowerCase().includes(search.toLowerCase()) ||
-      player.discord_id?.toLowerCase().includes(search.toLowerCase());
-    const matchesRole = roleFilter === "all" || player.role === roleFilter;
+  const filteredProfiles = profiles.filter((p) => {
+    const matchesSearch = p.username.toLowerCase().includes(search.toLowerCase());
+    const matchesRole = roleFilter === "all" || p.role === roleFilter;
     return matchesSearch && matchesRole;
   });
 
-  const getRoleBadge = (role: string | null) => {
-    switch (role) {
-      case "admin":
-        return <Badge className="bg-red-500 gap-1"><ShieldCheck className="h-3 w-3" /> Admin</Badge>;
-      case "moderator":
-        return <Badge className="bg-blue-500 gap-1"><Shield className="h-3 w-3" /> Moderator</Badge>;
-      default:
-        return <Badge variant="secondary" className="gap-1"><User className="h-3 w-3" /> User</Badge>;
-    }
-  };
-
   return (
-    <AdminLayout title="Player Management" description="View and manage registered players">
+    <AdminLayout title="USER DIRECTORY" description="Manage all registered profiles">
       <div className="mb-6 flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by username or Discord..."
-            className="pl-10"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+          <Input 
+            placeholder="Search all profiles..." 
+            className="pl-10 h-12 rounded-xl" 
+            value={search} 
+            onChange={(e) => setSearch(e.target.value)} 
           />
         </div>
         <Select value={roleFilter} onValueChange={setRoleFilter}>
-          <SelectTrigger className="w-40">
-            <SelectValue />
+          <SelectTrigger className="w-full sm:w-48 h-12 rounded-xl">
+            <SelectValue placeholder="All Roles" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Roles</SelectItem>
+            <SelectItem value="all">All Profiles</SelectItem>
             <SelectItem value="admin">Admins</SelectItem>
             <SelectItem value="moderator">Moderators</SelectItem>
             <SelectItem value="user">Users</SelectItem>
@@ -125,90 +105,65 @@ export default function AdminPlayers() {
         </Select>
       </div>
 
-      <div className="flex items-center gap-2 mb-4">
-        <Badge variant="secondary">{players.length} total players</Badge>
-        <Badge className="bg-red-500">{players.filter((p) => p.role === "admin").length} admins</Badge>
+      <div className="mb-4">
+        <Badge variant="secondary" className="px-3 py-1 rounded-lg">
+          {profiles.length} Profiles Registered
+        </Badge>
       </div>
 
-      {loading ? (
-        <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="animate-pulse">
-              <CardContent className="h-20" />
-            </Card>
-          ))}
-        </div>
-      ) : filteredPlayers.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <User className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No players found.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {filteredPlayers.map((player) => (
-            <Card key={player.id}>
-              <CardContent className="flex items-center justify-between p-4">
+      <div className="grid gap-3">
+        {loading ? (
+          <div className="text-center py-10">Updating Directory...</div>
+        ) : (
+          filteredProfiles.map((profile) => (
+            <Card key={profile.id} className="rounded-2xl border-muted/50">
+              <CardContent className="flex items-center justify-between p-5">
                 <div className="flex items-center gap-4">
                   <Avatar className="h-12 w-12">
-                    <AvatarImage src={player.avatar_url || undefined} />
-                    <AvatarFallback>{player.username.slice(0, 2).toUpperCase()}</AvatarFallback>
+                    <AvatarImage src={profile.avatar_url || undefined} />
+                    <AvatarFallback className="font-bold bg-muted text-muted-foreground">
+                      {profile.username.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
                   </Avatar>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h4 className="font-semibold">{player.username}</h4>
-                      {getRoleBadge(player.role)}
+                      <h4 className="font-bold uppercase italic">{profile.username}</h4>
+                      {profile.role !== 'user' && (
+                        <Badge className={`${profile.role === 'admin' ? 'bg-red-500' : 'bg-blue-500'} text-[10px] h-5 uppercase`}>
+                          {profile.role}
+                        </Badge>
+                      )}
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {player.discord_id || "No Discord"} • Joined {format(new Date(player.created_at), "MMM d, yyyy")}
-                    </p>
+                    <p className="text-xs text-muted-foreground">Joined {format(new Date(profile.created_at), "MMM d, yyyy")}</p>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm">Change Role</Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Change Role for {player.username}</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Select a new role for this user. Admins have full access to the admin panel.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <div className="grid grid-cols-3 gap-2 py-4">
-                        <Button
-                          variant={player.role === "user" ? "default" : "outline"}
-                          onClick={() => updateRole(player.user_id, "user")}
-                        >
-                          User
-                        </Button>
-                        <Button
-                          variant={player.role === "moderator" ? "default" : "outline"}
-                          onClick={() => updateRole(player.user_id, "moderator")}
-                        >
-                          Moderator
-                        </Button>
-                        <Button
-                          variant={player.role === "admin" ? "default" : "outline"}
-                          className={player.role !== "admin" ? "bg-red-500 hover:bg-red-600" : ""}
-                          onClick={() => updateRole(player.user_id, "admin")}
-                        >
-                          Admin
-                        </Button>
-                      </div>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
+
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="rounded-xl font-bold gap-2">
+                      <UserPlus className="h-4 w-4" /> CHANGE ROLE
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="rounded-3xl max-w-[400px] max-h-[90vh] overflow-y-auto">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="text-center uppercase font-black">Change Role</AlertDialogTitle>
+                      <AlertDialogDescription className="text-center">Select status for {profile.username}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="grid gap-3 py-4">
+                      <Button variant={profile.role === "user" ? "default" : "secondary"} className="h-12 rounded-xl font-bold" onClick={() => handleRoleUpdate(profile.user_id, "user")}>USER</Button>
+                      <Button variant={profile.role === "moderator" ? "default" : "secondary"} className="h-12 rounded-xl font-bold" onClick={() => handleRoleUpdate(profile.user_id, "moderator")}>MODERATOR</Button>
+                      <Button className={`h-12 rounded-xl font-bold ${profile.role !== "admin" ? "bg-red-600 hover:bg-red-700 text-white" : ""}`} onClick={() => handleRoleUpdate(profile.user_id, "admin")}>ADMIN</Button>
+                    </div>
+                    <AlertDialogFooter className="sm:justify-center">
+                      <AlertDialogCancel className="w-full rounded-xl border-none bg-muted/50 font-bold uppercase">Cancel</AlertDialogCancel>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </CardContent>
             </Card>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
     </AdminLayout>
   );
 }

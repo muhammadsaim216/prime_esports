@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Users, Trophy, ChevronRight } from "lucide-react";
+import { Trophy, ChevronRight, UserPlus } from "lucide-react"; // Added UserPlus icon
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Layout } from "@/components/layout/Layout";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth"; // Added to check for logged-in user
 
 interface Player {
   id: string;
@@ -30,6 +31,7 @@ interface Team {
 }
 
 export default function Teams() {
+  const { user } = useAuth(); // Hook to get current user
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -42,18 +44,13 @@ export default function Teams() {
   const fetchTeams = async () => {
     try {
       const { data, error } = await supabase
-        .from('teams') // Make sure this is lowercase if your table is lowercase
+        .from('teams')
         .select('*');
 
       if (error) {
         console.error("Teams Fetch Error:", error.message);
-      } else {
-        console.log("Teams found:", data); // Check your browser console to see if data arrives
-        setTeams(data || []);
-      }
-      if (data) {
+      } else if (data) {
         setTeams(data);
-        // Extract unique categories
         const uniqueCategories = [...new Set(data.map(team => team.category))];
         setCategories(["All", ...uniqueCategories]);
       }
@@ -61,6 +58,32 @@ export default function Teams() {
       console.error('Error fetching teams:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // --- NEW JOIN LOGIC ---
+  const handleJoinTeam = async (teamId: string) => {
+    if (!user) {
+      alert("Please login to apply for a roster!");
+      return;
+    }
+
+    const { error } = await supabase
+      .from('team_applications')
+      .insert([{ 
+        user_id: user.id, 
+        team_id: teamId,
+        status: 'pending' 
+      }]);
+
+    if (error) {
+      if (error.code === '23505') {
+        alert("You have already applied for this roster!");
+      } else {
+        alert("Error sending application: " + error.message);
+      }
+    } else {
+      alert("Application sent successfully! Admin will review your request.");
     }
   };
 
@@ -132,98 +155,89 @@ export default function Teams() {
           ) : filteredTeams.length > 0 ? (
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
               {filteredTeams.map((team) => (
-                <Card key={team.id} className="card-hover group overflow-hidden">
+                <Card key={team.id} className="card-hover group overflow-hidden border-none bg-card/50">
                   {/* Team Header */}
-                  <div className="relative bg-gradient-to-br from-primary/20 to-transparent p-6">
+                  <div className="relative bg-gradient-to-br from-primary/10 to-transparent p-6">
                     <div className="flex items-center gap-4">
-                      <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-background text-3xl shadow-lg">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-background text-3xl shadow-lg border border-white/5">
                         {team.logo}
                       </div>
                       <div>
-                        <CardTitle className="text-xl">{team.name}</CardTitle>
+                        <CardTitle className="text-xl font-bold italic uppercase tracking-tighter">{team.name}</CardTitle>
                         <div className="mt-1 flex items-center gap-2">
-                          <Badge>{team.game}</Badge>
-                          <Badge variant="outline">{team.category}</Badge>
+                          <Badge variant="secondary" className="text-[10px] uppercase font-bold tracking-widest">{team.game}</Badge>
+                          <Badge variant="outline" className="text-[10px] uppercase font-bold opacity-70">{team.category}</Badge>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <CardContent className="p-6">
-                    <p className="mb-4 text-sm text-muted-foreground">{team.description}</p>
+                  <CardContent className="p-6 space-y-6">
+                    <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                      {team.description}
+                    </p>
 
-                    {/* Achievements */}
+                    {/* Achievements Section */}
                     {team.team_achievements && team.team_achievements.length > 0 && (
-                      <div className="mb-4">
-                        <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                          <Trophy className="h-4 w-4 text-primary" />
-                          Recent Achievements
+                      <div className="pt-4 border-t border-white/5">
+                        <h4 className="mb-3 flex items-center gap-2 text-xs font-black uppercase italic tracking-wider text-primary">
+                          <Trophy className="h-3 w-3" />
+                          Recent Success
                         </h4>
-                        <ul className="space-y-1">
+                        <ul className="space-y-2">
                           {team.team_achievements.slice(0, 2).map((achievement) => (
-                            <li key={achievement.id} className="text-sm text-muted-foreground">
-                              • {achievement.title}
+                            <li key={achievement.id} className="text-xs font-medium text-gray-400 flex items-start gap-2">
+                              <span className="text-primary">•</span>
+                              <span className="truncate">{achievement.title}</span>
                             </li>
                           ))}
                         </ul>
                       </div>
                     )}
 
-                    {/* Roster Preview */}
-                    <div className="mb-4">
-                      <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                        <Users className="h-4 w-4 text-primary" />
-                        Roster ({team.players?.length || 0} players)
-                      </h4>
-                      <div className="flex -space-x-2">
-                        {team.players?.slice(0, 5).map((player) => (
-                          <div
-                            key={player.id}
-                            className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-muted text-xs font-medium"
-                            title={player.name}
-                          >
-                            {player.name.charAt(0)}
-                          </div>
-                        ))}
-                        {team.players && team.players.length > 5 && (
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-primary text-xs font-medium text-primary-foreground">
-                            +{team.players.length - 5}
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    <div className="space-y-2 pt-2">
+                      {/* NEW: Apply Button */}
+                      <Button 
+                        onClick={() => handleJoinTeam(team.id)}
+                        variant="secondary" 
+                        className="w-full font-bold uppercase italic text-xs tracking-widest py-6 bg-primary/10 hover:bg-primary hover:text-white transition-all"
+                      >
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        Apply to Join
+                      </Button>
 
-                    {/* View Team Button */}
-                    <Button variant="outline" className="w-full gap-2 group-hover:border-primary" asChild>
-                      <Link to={`/teams/${team.id}`}>
-                        View Full Roster
-                        <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                      </Link>
-                    </Button>
+                      {/* Original Action Button */}
+                      <Button variant="outline" className="w-full group-hover:border-primary transition-all duration-300 font-bold uppercase italic text-xs tracking-widest py-6" asChild>
+                        <Link to={`/teams/${team.id}`}>
+                          View Full Roster
+                          <ChevronRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                        </Link>
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No teams found in this category.</p>
+            <div className="text-center py-20">
+              <p className="text-muted-foreground font-bold uppercase italic tracking-widest">No squads found.</p>
             </div>
           )}
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="border-t bg-secondary/30 py-16">
+      <section className="border-t border-white/5 bg-secondary/10 py-16">
         <div className="container">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="mb-4 font-display text-2xl font-bold uppercase md:text-3xl">
-              Want to Join a Team?
+            <h2 className="mb-4 font-display text-3xl font-black uppercase italic tracking-tighter">
+              Join the <span className="text-primary">Legacy</span>
             </h2>
-            <p className="mb-6 text-muted-foreground">
-              We're always looking for talented players. Check out our open tryouts and apply today.
+            <p className="mb-8 text-muted-foreground font-medium">
+              Think you have what it takes to wear the Prime jersey? Our scouts are always watching.
             </p>
-            <Button asChild>
-              <Link to="/scrims">View Open Tryouts</Link>
+            <Button size="lg" className="font-black uppercase italic tracking-tighter px-12" asChild>
+              <Link to="/scrims">Apply Now</Link>
             </Button>
           </div>
         </div>

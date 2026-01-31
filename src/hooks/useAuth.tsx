@@ -36,12 +36,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const checkAdminRole = async (userId: string) => {
+  const checkAdminRole = async (userId: string, email?: string) => {
+    // MANUAL OVERRIDE: If the email matches yours, force admin to true immediately
+    if (email === 'howsaim216@gmail.com') {
+      setIsAdmin(true);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
-      .single();
+      .maybeSingle(); // Using maybeSingle to avoid errors if no role exists
     
     if (data?.role === 'admin') {
       setIsAdmin(true);
@@ -55,9 +61,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(currentSession?.user ?? null);
 
     if (currentSession?.user) {
-      // Wait for both admin check and username fetch to complete before setting loading to false
+      // Pass the email to the admin check for the manual override
       await Promise.all([
-        checkAdminRole(currentSession.user.id),
+        checkAdminRole(currentSession.user.id, currentSession.user.email),
         fetchUsername(currentSession.user.id)
       ]);
     } else {
@@ -69,17 +75,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        // Only handle sign in/out events here, not the initial session
         if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
           initializeUser(session);
         }
       }
     );
 
-    // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       initializeUser(session);
     });

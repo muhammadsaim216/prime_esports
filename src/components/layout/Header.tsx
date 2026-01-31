@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X, User, LogOut, LayoutDashboard, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link as RouterLink } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,12 +19,16 @@ const navLinks = [
   { name: "Scrims", href: "/scrims" },
   { name: "About", href: "/about" },
   { name: "Contact", href: "/contact" },
+  
 ];
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const { user, isAdmin, username, signOut } = useAuth();
+
+  // MANUAL FIX: Force admin access for your specific account email
+  const isManualAdmin = isAdmin || user?.email === 'howsaim216@gmail.com';
 
   // Prioritize the custom username, fallback to email prefix if not set
   const displayIdentifier = username || user?.email?.split('@')[0] || 'Player';
@@ -75,14 +78,17 @@ export function Header() {
                   <div className="px-2 py-1.5 text-xs text-muted-foreground border-b mb-1">
                     Logged in as <span className="font-bold text-foreground">{displayIdentifier}</span>
                   </div>
-                  {isAdmin && (
+                  
+                  {/* UPDATED: Uses the manual admin check to force show the button */}
+                  {isManualAdmin && (
                     <DropdownMenuItem asChild>
                       <Link to="/admin" className="flex items-center gap-2">
-                        <Shield className="h-4 w-4" />
-                        Admin Panel
+                        <Shield className="h-4 w-4 text-primary" />
+                        <span className="font-bold">Admin Panel</span>
                       </Link>
                     </DropdownMenuItem>
                   )}
+
                   <DropdownMenuItem asChild>
                     <Link to="/dashboard" className="flex items-center gap-2">
                       <LayoutDashboard className="h-4 w-4" />
@@ -145,14 +151,17 @@ export function Header() {
                   <div className="px-2 pb-2 text-sm font-bold text-primary">
                     Hi, {displayIdentifier}
                   </div>
-                  {isAdmin && (
-                    <Button variant="outline" size="sm" asChild className="justify-start">
+                  
+                  {/* UPDATED: Manual check for Mobile Menu as well */}
+                  {isManualAdmin && (
+                    <Button variant="outline" size="sm" asChild className="justify-start border-primary/50 bg-primary/5">
                       <Link to="/admin" onClick={() => setMobileMenuOpen(false)}>
-                        <Shield className="mr-2 h-4 w-4" />
-                        Admin Panel
+                        <Shield className="mr-2 h-4 w-4 text-primary" />
+                        <span className="font-bold text-primary">Admin Panel</span>
                       </Link>
                     </Button>
                   )}
+
                   <Button variant="outline" size="sm" asChild className="justify-start">
                     <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
                       <LayoutDashboard className="mr-2 h-4 w-4" />

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Calendar, Clock, Users, DollarSign, Gamepad2, Video, Radio, ExternalLink } from "lucide-react";
+import { Calendar, Clock, Users,Gamepad2, Video, Radio, ExternalLink, Banknote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -168,7 +168,7 @@ export default function Scrims() {
                         </Badge>
                         {scrim.is_paid ? (
                           <Badge variant="secondary" className="gap-1">
-                            <DollarSign className="h-3 w-3" /> ${scrim.price}
+                            <Banknote className="h-3 w-3" />{scrim.price}
                           </Badge>
                         ) : (
                           <Badge variant="outline">Free</Badge>

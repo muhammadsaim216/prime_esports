@@ -1,55 +1,36 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Video, Radio, ExternalLink, Copy } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Plus, Video, Monitor, Loader2, Trash2, ExternalLink, Zap, Image as ImageIcon } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminLayout } from "./AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
-
-interface Stream {
-  id: string;
-  title: string;
-  description: string | null;
-  stream_type: "direct" | "third_party";
-  embed_url: string | null;
-  direct_stream_key: string | null;
-  scrim_id: string | null;
-  is_live: boolean;
-  thumbnail_url: string | null;
-  created_at: string;
-}
-
-interface Scrim {
-  id: string;
-  title: string;
-}
-
 export default function AdminStreams() {
-  const [streams, setStreams] = useState<Stream[]>([]);
-  const [scrims, setScrims] = useState<Scrim[]>([]);
+  const [streams, setStreams] = useState<any[]>([]);
+  const [scrims, setScrims] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingStream, setEditingStream] = useState<Stream | null>(null);
+  const [streamType, setStreamType] = useState<"third-party" | "direct">("third-party");
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    stream_type: "third_party" as "direct" | "third_party",
-    embed_url: "",
-    scrim_id: "",
-    is_live: false,
-    thumbnail_url: "",
+    url: "",
+    thumbnail_url: "", // Added thumbnail state
+    scrim_id: "none",
+    goLiveNow: true,
   });
+
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -59,314 +40,187 @@ export default function AdminStreams() {
   }, []);
 
   const fetchStreams = async () => {
-    const { data, error } = await supabase
-      .from("streams")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (!error && data) {
-      setStreams(data as Stream[]);
-    }
+    setLoading(true);
+    const { data } = await supabase.from("streams").select("*").order("created_at", { ascending: false });
+    if (data) setStreams(data);
     setLoading(false);
   };
 
   const fetchScrims = async () => {
-    const { data, error } = await supabase
-      .from("scrims")
-      .select("id, title")
-      .in("status", ["upcoming", "live"]);
-
-    if (!error && data) {
-      setScrims(data);
-    }
+    const { data } = await supabase.from("scrims").select("id, title");
+    if (data) setScrims(data);
   };
 
-  const resetForm = () => {
-    setFormData({
-      title: "",
-      description: "",
-      stream_type: "third_party",
-      embed_url: "",
-      scrim_id: "",
-      is_live: false,
-      thumbnail_url: "",
-    });
-    setEditingStream(null);
-  };
-
-  const openEditDialog = (stream: Stream) => {
-    setEditingStream(stream);
-    setFormData({
-      title: stream.title,
-      description: stream.description || "",
-      stream_type: stream.stream_type,
-      embed_url: stream.embed_url || "",
-      scrim_id: stream.scrim_id || "",
-      is_live: stream.is_live,
-      thumbnail_url: stream.thumbnail_url || "",
-    });
-    setDialogOpen(true);
-  };
-
-  const generateStreamKey = () => {
-    return `prime_${crypto.randomUUID()}`;
-  };
-
-  const handleSubmit = async () => {
+  const handleCreateStream = async () => {
     if (!user) return;
+    setIsSubmitting(true);
 
-    const streamData: any = {
+    const streamKey = streamType === "direct" ? `PRIME_${Math.random().toString(36).substring(2, 10).toUpperCase()}` : null;
+
+    const { error } = await supabase.from("streams").insert([{
       title: formData.title,
-      description: formData.description || null,
-      stream_type: formData.stream_type,
-      embed_url: formData.stream_type === "third_party" ? formData.embed_url : null,
-      direct_stream_key: formData.stream_type === "direct" && !editingStream?.direct_stream_key ? generateStreamKey() : editingStream?.direct_stream_key,
-      scrim_id: formData.scrim_id || null,
-      is_live: formData.is_live,
-      thumbnail_url: formData.thumbnail_url || null,
+      description: formData.description,
+      url: streamType === "third-party" ? formData.url : null,
+      thumbnail_url: formData.thumbnail_url, // Added to insert
+      stream_key: streamKey,
+      status: formData.goLiveNow ? "live" : "scheduled",
+      scrim_id: formData.scrim_id === "none" ? null : formData.scrim_id,
       created_by: user.id,
-    };
-
-    let error;
-    if (editingStream) {
-      const { error: updateError } = await supabase
-        .from("streams")
-        .update(streamData)
-        .eq("id", editingStream.id);
-      error = updateError;
-    } else {
-      const { error: insertError } = await supabase.from("streams").insert(streamData);
-      error = insertError;
-    }
+      streamer_name: user.email?.split('@')[0] || "Prime Admin"
+    }]);
 
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Creation Failed", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Success", description: editingStream ? "Stream updated!" : "Stream created!" });
+      toast({ title: "GO LIVE SUCCESSFUL", description: "Your stream is now active." });
       fetchStreams();
       setDialogOpen(false);
-      resetForm();
+      setFormData({ title: "", description: "", url: "", thumbnail_url: "", scrim_id: "none", goLiveNow: true });
     }
+    setIsSubmitting(false);
   };
 
-  const handleDelete = async (id: string) => {
+  const deleteStream = async (id: string) => {
     const { error } = await supabase.from("streams").delete().eq("id", id);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Deleted", description: "Stream has been deleted." });
-      fetchStreams();
-    }
-  };
-
-  const toggleLive = async (stream: Stream) => {
-    const { error } = await supabase
-      .from("streams")
-      .update({ is_live: !stream.is_live })
-      .eq("id", stream.id);
-
     if (!error) {
+      toast({ title: "Stream Terminated", description: "The broadcast has been removed." });
       fetchStreams();
-      toast({ title: stream.is_live ? "Stream ended" : "Stream is live!" });
     }
-  };
-
-  const copyStreamKey = (key: string) => {
-    navigator.clipboard.writeText(key);
-    toast({ title: "Copied!", description: "Stream key copied to clipboard." });
   };
 
   return (
-    <AdminLayout title="Streams Management" description="Manage live streams - third-party or direct">
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary">{streams.length} total streams</Badge>
-          <Badge className="bg-red-500 gap-1">
-            <Radio className="h-3 w-3 animate-pulse" />
-            {streams.filter((s) => s.is_live).length} live
-          </Badge>
-        </div>
-        <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
+    <AdminLayout title="BROADCAST CENTER" description="Manage your Prime Esports live feeds">
+      <div className="mb-8 flex justify-between items-center">
+        <h2 className="text-zinc-400 font-bold uppercase text-[10px] tracking-[0.3em]">Active Transmissions: {streams.length}</h2>
+        
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" /> Add Stream
+            <Button className="bg-[#E14B4B] hover:bg-[#c43a3a] text-white h-12 px-8 rounded-xl font-black italic uppercase tracking-tighter shadow-lg shadow-red-500/20 transition-all active:scale-95">
+              <Plus className="mr-2 h-5 w-5" /> Start Broadcast
             </Button>
           </DialogTrigger>
-          {/* FIXED: Added scroll and max-height to prevent parts of the dialog from being missing */}
-          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          {/* ADDED: max-h and overflow-y-auto to fix the screen cut-off issue */}
+          <DialogContent className="rounded-[2.5rem] border-none p-8 max-w-md bg-white shadow-2xl max-h-[90vh] overflow-y-auto scrollbar-hide">
             <DialogHeader>
-              <DialogTitle>{editingStream ? "Edit Stream" : "Add New Stream"}</DialogTitle>
-              <DialogDescription>
-                Configure your stream settings below.
-              </DialogDescription>
+              <DialogTitle className="text-3xl font-black italic uppercase tracking-tighter text-[#1A1A1A]">New Stream</DialogTitle>
+              <DialogDescription className="font-bold text-zinc-400 uppercase text-[10px] tracking-widest">Configure your live feed settings</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Stream Title</Label>
-                <Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Weekly Scrim Stream" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Stream details..." />
-              </div>
+            
+            <Tabs defaultValue="third-party" onValueChange={(v: any) => setStreamType(v)} className="mt-6">
+              <TabsList className="grid grid-cols-2 bg-zinc-100 rounded-2xl p-1 h-12">
+                <TabsTrigger value="third-party" className="rounded-xl font-black text-[10px] uppercase data-[state=active]:bg-white data-[state=active]:text-[#E14B4B] transition-all">External Link</TabsTrigger>
+                <TabsTrigger value="direct" className="rounded-xl font-black text-[10px] uppercase data-[state=active]:bg-white data-[state=active]:text-[#E14B4B] transition-all">Direct RTMP</TabsTrigger>
+              </TabsList>
 
-              <div className="space-y-2">
-                <Label>Stream Type</Label>
-                <Tabs value={formData.stream_type} onValueChange={(v: any) => setFormData({ ...formData, stream_type: v })}>
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="third_party">Third Party</TabsTrigger>
-                    <TabsTrigger value="direct">Direct Stream</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="third_party" className="mt-4 space-y-2">
-                    <Label htmlFor="embed_url">Embed URL</Label>
-                    <Input
-                      id="embed_url"
-                      value={formData.embed_url}
-                      onChange={(e) => setFormData({ ...formData, embed_url: e.target.value })}
-                      placeholder="https://www.twitch.tv/embed/channel or YouTube embed URL"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Paste the embed URL from Twitch, YouTube, or other streaming platforms.
-                    </p>
-                  </TabsContent>
-                  <TabsContent value="direct" className="mt-4">
-                    <div className="rounded-lg border bg-muted/50 p-4 text-center">
-                      <Video className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">
-                        A unique stream key will be generated for direct streaming.
-                      </p>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Link to Scrim (Optional)</Label>
-                <Select value={formData.scrim_id} onValueChange={(v) => setFormData({ ...formData, scrim_id: v })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a scrim..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No scrim</SelectItem>
-                    {scrims.map((scrim) => (
-                      <SelectItem key={scrim.id} value={scrim.id}>{scrim.title}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="thumbnail_url">Thumbnail URL (Optional)</Label>
-                <Input id="thumbnail_url" value={formData.thumbnail_url} onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })} placeholder="https://..." />
-              </div>
-
-              <div className="flex items-center justify-between rounded-lg border p-4">
-                <div>
-                  <Label htmlFor="is_live">Go Live Now</Label>
-                  <p className="text-sm text-muted-foreground">Mark stream as live immediately</p>
+              <div className="space-y-4 mt-6">
+                <div className="space-y-1.5">
+                  <Label className="uppercase font-black text-[10px] tracking-widest text-zinc-400 ml-1">Stream Title</Label>
+                  <Input className="rounded-xl bg-zinc-50 border-zinc-100 h-12 focus-visible:ring-[#E14B4B] font-bold" placeholder="Enter stream name..." value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
                 </div>
-                <Switch id="is_live" checked={formData.is_live} onCheckedChange={(c) => setFormData({ ...formData, is_live: c })} />
-              </div>
 
-              <Button onClick={handleSubmit} className="w-full">
-                {editingStream ? "Update Stream" : "Create Stream"}
-              </Button>
-            </div>
+                <div className="space-y-1.5">
+                  <Label className="uppercase font-black text-[10px] tracking-widest text-zinc-400 ml-1">Description</Label>
+                  <Input className="rounded-xl bg-zinc-50 border-zinc-100 h-12 focus-visible:ring-[#E14B4B] font-bold" placeholder="Brief details..." value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
+                </div>
+
+                {/* ADDED: Thumbnail URL Field */}
+                <div className="space-y-1.5">
+                  <Label className="uppercase font-black text-[10px] tracking-widest text-zinc-400 ml-1">Thumbnail URL (Optional)</Label>
+                  <div className="relative">
+                    <Input className="rounded-xl bg-zinc-50 border-zinc-100 h-12 focus-visible:ring-[#E14B4B] font-bold pl-10" placeholder="https://image-link.com/..." value={formData.thumbnail_url} onChange={e => setFormData({...formData, thumbnail_url: e.target.value})} />
+                    <ImageIcon className="absolute left-3 top-3.5 h-5 w-5 text-zinc-300" />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="uppercase font-black text-[10px] tracking-widest text-zinc-400 ml-1">Link to Scrim (Optional)</Label>
+                  <Select value={formData.scrim_id} onValueChange={(v) => setFormData({ ...formData, scrim_id: v })}>
+                    <SelectTrigger className="h-12 rounded-xl border-zinc-100 bg-zinc-50 font-bold focus:ring-[#E14B4B]">
+                      <SelectValue placeholder="Select a scrim" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-zinc-100">
+                      <SelectItem value="none" className="font-bold uppercase text-xs">No Scrim Linked</SelectItem>
+                      {scrims.map((s) => <SelectItem key={s.id} value={s.id} className="font-bold uppercase text-xs">{s.title}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {streamType === "third-party" ? (
+                  <div className="space-y-1.5">
+                    <Label className="uppercase font-black text-[10px] tracking-widest text-zinc-400 ml-1">YouTube/Twitch URL</Label>
+                    <Input className="rounded-xl bg-zinc-50 border-zinc-100 h-12 focus-visible:ring-[#E14B4B] font-bold" placeholder="https://..." value={formData.url} onChange={e => setFormData({...formData, url: e.target.value})} />
+                  </div>
+                ) : (
+                  <div className="p-6 rounded-[2rem] bg-[#E14B4B]/5 border border-[#E14B4B]/10 text-center">
+                    <Zap className="h-8 w-8 text-[#E14B4B] mx-auto mb-2" />
+                    <p className="text-xs font-black uppercase italic text-[#E14B4B]">RTMP Mode Active</p>
+                    <p className="text-[9px] text-zinc-400 uppercase font-bold mt-1 tracking-wider">A unique stream key will be generated</p>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-zinc-50 border border-zinc-100">
+                  <span className="text-xs font-black uppercase italic tracking-tight">Go Live Now</span>
+                  <Switch checked={formData.goLiveNow} onCheckedChange={c => setFormData({...formData, goLiveNow: c})} className="data-[state=checked]:bg-[#E14B4B]" />
+                </div>
+
+                <Button onClick={handleCreateStream} disabled={isSubmitting} className="w-full h-16 bg-[#E14B4B] hover:bg-[#c43a3a] text-white rounded-2xl font-black italic uppercase text-lg shadow-xl shadow-red-500/20 transition-all">
+                  {isSubmitting ? <Loader2 className="animate-spin" /> : "START BROADCAST"}
+                </Button>
+              </div>
+            </Tabs>
           </DialogContent>
         </Dialog>
       </div>
 
       {loading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="animate-pulse">
-              <CardContent className="h-48" />
-            </Card>
-          ))}
-        </div>
-      ) : streams.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <Video className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No streams yet. Add your first stream!</p>
-          </CardContent>
-        </Card>
+        <div className="flex justify-center py-20"><Loader2 className="h-10 w-10 animate-spin text-[#E14B4B]" /></div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {streams.map((stream) => (
-            <Card key={stream.id}>
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    {stream.is_live && (
-                      <Badge className="bg-red-500 gap-1">
-                        <Radio className="h-3 w-3 animate-pulse" /> LIVE
-                      </Badge>
-                    )}
-                    <Badge variant="outline">
-                      {stream.stream_type === "third_party" ? "Third Party" : "Direct"}
-                    </Badge>
+        <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+          {streams.map((s) => (
+            <Card key={s.id} className="rounded-[2.5rem] border-zinc-100 overflow-hidden shadow-sm hover:shadow-xl transition-all group">
+              <div className="aspect-video bg-zinc-900 flex items-center justify-center relative overflow-hidden">
+                {/* Updated: Show thumbnail if available, otherwise show placeholder icon */}
+                {s.thumbnail_url ? (
+                  <img src={s.thumbnail_url} alt={s.title} className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500" />
+                ) : (
+                  <Video className="h-16 w-16 text-zinc-800 transition-transform group-hover:scale-110 duration-500" />
+                )}
+                <Badge className="absolute top-6 left-6 bg-[#E14B4B] animate-pulse uppercase font-black italic text-[10px] px-3 py-1 rounded-full shadow-lg">
+                  {s.status === 'live' ? 'LIVE' : 'SCHEDULED'}
+                </Badge>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+              <div className="p-8">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-black italic uppercase text-2xl tracking-tighter text-[#1A1A1A] leading-none">{s.title}</h3>
+                    <p className="text-xs font-bold text-zinc-400 uppercase mt-2 tracking-wide">{s.description || 'No description provided'}</p>
                   </div>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => openEditDialog(stream)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Stream?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently delete "{stream.title}".
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(stream.id)}>Delete</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
+                  <Button variant="ghost" size="icon" className="text-zinc-300 hover:text-[#E14B4B] hover:bg-red-50 rounded-full transition-colors" onClick={() => deleteStream(s.id)}>
+                    <Trash2 className="h-5 w-5" />
+                  </Button>
                 </div>
-                <CardTitle className="text-lg mt-2">{stream.title}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground line-clamp-2">{stream.description}</p>
                 
-                {stream.stream_type === "direct" && stream.direct_stream_key && (
-                  <div className="rounded-lg border bg-muted/50 p-3">
-                    <Label className="text-xs">Stream Key</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <code className="text-xs bg-background px-2 py-1 rounded flex-1 truncate">
-                        {stream.direct_stream_key}
-                      </code>
-                      <Button variant="ghost" size="icon" onClick={() => copyStreamKey(stream.direct_stream_key!)}>
-                        <Copy className="h-4 w-4" />
-                      </Button>
+                {s.stream_key && (
+                  <div className="mt-6 p-4 bg-zinc-50 rounded-2xl border border-dashed border-zinc-200">
+                    <p className="text-[9px] font-black uppercase text-zinc-400 tracking-[0.2em] mb-1">RTMP Stream Key</p>
+                    <div className="flex items-center justify-between">
+                      <code className="text-xs font-black text-[#E14B4B] tracking-wider">{s.stream_key}</code>
+                      <Zap className="h-3 w-3 text-[#E14B4B]" />
                     </div>
                   </div>
                 )}
 
-                {stream.embed_url && (
-                  <Button variant="outline" size="sm" className="gap-1" asChild>
-                    <a href={stream.embed_url} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-3 w-3" /> View Stream
-                    </a>
-                  </Button>
-                )}
-
-                <Button
-                  variant={stream.is_live ? "destructive" : "default"}
-                  className="w-full"
-                  onClick={() => toggleLive(stream)}
-                >
-                  {stream.is_live ? "End Stream" : "Go Live"}
-                </Button>
-              </CardContent>
+                <div className="mt-6 pt-6 border-t border-zinc-50 flex items-center justify-between">
+                   <div className="flex items-center gap-2">
+                     <div className="h-2 w-2 rounded-full bg-[#E14B4B]" />
+                     <span className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Server Active</span>
+                   </div>
+                   <Button variant="link" className="text-[#E14B4B] font-black italic uppercase text-[10px] p-0 h-auto" asChild>
+                     <a href={s.url || "#"} target="_blank" rel="noreferrer">Open Preview <ExternalLink className="ml-1 h-3 w-3" /></a>
+                   </Button>
+                </div>
+              </div>
             </Card>
           ))}
         </div>
