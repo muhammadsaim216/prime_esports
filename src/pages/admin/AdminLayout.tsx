@@ -1,6 +1,7 @@
 import { ReactNode, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, ClipboardList, FileText, Video, Radio, Bell, Settings, LogOut, ChevronRight, Megaphone, Loader2 } from "lucide-react";
+// Added UserPlus to the imports
+import { LayoutDashboard, Users, UserPlus, ClipboardList, FileText, Video, Radio, Bell, Settings, LogOut, ChevronRight, Megaphone, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -8,6 +9,8 @@ import { cn } from "@/lib/utils";
 const sidebarLinks = [
   { icon: LayoutDashboard, label: "Overview", href: "/admin" },
   { icon: Users, label: "Players", href: "/admin/players" },
+  // --- ADDED THIS LINE BELOW ---
+  { icon: UserPlus, label: "Roster Management", href: "/admin/rosters" }, 
   { icon: ClipboardList, label: "Scrims", href: "/admin/scrims" },
   { icon: FileText, label: "Applications", href: "/admin/applications" },
   { icon: Video, label: "Streams", href: "/admin/streams" },
@@ -27,16 +30,13 @@ export function AdminLayout({ children, title, description }: AdminLayoutProps) 
   const { user, isAdmin, loading, signOut } = useAuth();
 
   useEffect(() => {
-    // Only redirect if we are certain the loading is finished 
-    // AND the user is definitely not an admin.
     if (!loading) {
       if (!user || isAdmin === false) {
-        navigate("/auth"); // Changed from /login to /auth to match your setup
+        navigate("/auth"); 
       }
     }
   }, [user, isAdmin, loading, navigate]);
 
-  // Enhanced Loading Screen to prevent flicker
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background">
@@ -48,7 +48,6 @@ export function AdminLayout({ children, title, description }: AdminLayoutProps) 
     );
   }
 
-  // If loading is done but session failed, return null while useEffect redirects
   if (!user || !isAdmin) {
     return null;
   }
@@ -61,7 +60,7 @@ export function AdminLayout({ children, title, description }: AdminLayoutProps) 
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
             <span className="font-display text-sm font-bold text-primary-foreground">P</span>
           </div>
-          <span className="font-display font-bold tracking-tight">ADMIN PANEL</span>
+          <span className="font-display font-bold tracking-tight uppercase">Admin Panel</span>
         </div>
         
         <nav className="flex-1 space-y-1 p-4">
